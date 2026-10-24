@@ -1,4 +1,3 @@
-
 .data
     prompt:     .asciiz "Enter a non-negative integer: "
     err_msg:    .asciiz "A factorial for your number can not be found."
@@ -21,18 +20,9 @@ main:
     # Kiểm tra số âm
     bltz    $t0, print_error    # Nếu n < 0, nhảy tới print_error
 
-    li      $t1, 1              # $t1 = kết quả (khởi tạo result = 1)
-
-fact_loop:
-    blez    $t0, print_result   # Nếu n <= 0, thoát vòng lặp và in kết quả
-
-    # result = result * n
-    mult    $t1, $t0            # Nhân $t1 với $t0, kết quả lưu ở (hi, lo)
-    mflo    $t1                 # Lấy phần 32-bit thấp từ thanh ghi lo gán lại vào $t1
-    
-    addi    $t0, $t0, -1        # n = n - 1
-    j       fact_loop           # Lặp lại
-
+    move    $a0, $t0            # Truyền tham số: n
+    jal     fact                # Gọi hàm đệ quy fact(n), kết quả trả về ở $v0
+    move    $t1, $v0            # $t1 = n!
 
 print_result:
     # In kết quả giai thừa
@@ -56,3 +46,30 @@ exit_program:
     # Kết thúc chương trình
     li      $v0, 10
     syscall
+
+
+fact:
+    # Base case (Điểm dừng đệ quy): Nếu n <= 0 (tức n == 0), return 1
+    bgtz    $a0, fact_recurse   # Nếu n > 0, nhảy tới phần đệ quy
+    li      $v0, 1              # 0! = 1
+    jr      $ra                 # Return
+
+fact_recurse:
+    # --- Stack Prologue ---
+    addi    $sp, $sp, -8        # Cấp phát 8 bytes trên Stack
+    sw      $ra, 4($sp)         # Lưu thanh ghi $ra (Return Address)
+    sw      $a0, 0($sp)         # Lưu n hiện tại
+
+    # --- Gọi đệ quy fact(n - 1) ---
+    addi    $a0, $a0, -1        # Tham số mới = n - 1
+    jal     fact                # $v0 = (n - 1)!
+
+    # --- Stack Epilogue ---
+    lw      $a0, 0($sp)         # Khôi phục n
+    lw      $ra, 4($sp)         # Khôi phục thanh ghi $ra từ Stack
+    addi    $sp, $sp, 8         # Giải phóng 8 bytes khỏi Stack
+
+    # --- n! = n * (n - 1)! ---
+    mult    $v0, $a0            # (n - 1)! * n
+    mflo    $v0                 # Lấy phần 32-bit thấp của tích
+    jr      $ra                 # Return n!

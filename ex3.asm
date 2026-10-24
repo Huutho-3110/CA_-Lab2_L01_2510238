@@ -1,4 +1,3 @@
-
 .data
     array:      .space  40              # Cấp phát 40 bytes cho mảng 10 số nguyên (10 * 4)
     prompt:     .asciiz "Please insert a element: "
@@ -6,6 +5,7 @@
     msg_idx:    .asciiz ", found in index "
     comma:      .asciiz ", "
     newline:    .asciiz "\n"
+    msg_none:   .asciiz "Khong ton tai phan tu lon nhat thu 2\n"
 
 .text
 .globl main
@@ -14,6 +14,7 @@ main:
     la      $s0, array          # $s0 = Địa chỉ cơ sở của mảng
     li      $s1, 10             # $s1 = Kích thước mảng (10)
 
+input_start:
     li      $t0, 0              # index = 0
 input_loop:
     bge     $t0, $s1, find_max_pass
@@ -53,27 +54,37 @@ skip_max:
 
 find_second_max_pass:
     li      $s3, 0x80000000     # $s3 = second_max (khởi tạo bằng INT_MIN = -2147483648)
+    li      $s5, 0              # $s5 = cờ found (0: chưa có second_max, 1: đã có)
     li      $t0, 0              # index = 0
     
 find_smax_loop:
-    bge     $t0, $s1, print_result
+    bge     $t0, $s1, check_found
     
     sll     $t1, $t0, 2
     add     $t1, $s0, $t1
     lw      $t2, 0($t1)         # $t2 = array[index]
     
     bge     $t2, $s2, skip_smax # Bỏ qua nếu phần tử >= max (tức là bằng max)
+    beqz    $s5, take_smax      # Nếu chưa có second_max nào (found = 0) thì nhận luôn
     ble     $t2, $s3, skip_smax # Bỏ qua nếu phần tử <= second_max
     
+take_smax:
     move    $s3, $t2            # second_max = array[index]
+    li      $s5, 1              # Đặt cờ found = 1
     
 skip_smax:
     addi    $t0, $t0, 1
     j       find_smax_loop
 
-    # ---------------------------------------------------------
-    # 4. IN KẾT QUẢ
-    # ---------------------------------------------------------
+check_found:
+    bnez    $s5, print_result   # Nếu đã tìm được second_max thì in kết quả
+
+    # Không tồn tại phần tử lớn thứ hai (mọi phần tử bằng nhau): báo và nhập lại mảng
+    li      $v0, 4
+    la      $a0, msg_none
+    syscall
+    j       input_start
+
 print_result:
     # In "Second largest value is "
     li      $v0, 4
